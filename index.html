@@ -148,7 +148,6 @@ button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radiu
       <ul class="week" id="weekList"></ul>
       <p class="note">Pushups before shower.</p>
       <div class="freq" id="freq"></div>
-      <p id="dbg" style="font-size:11px;color:#3a3a3c;margin:28px 0 0"></p>
     </div></div></section>
 
     <section id="plan" class="panel" role="tabpanel" aria-labelledby="tab-plan"><div class="pad"><div class="col inner">
@@ -375,8 +374,6 @@ function fit(){
  const appMode=navigator.standalone||["standalone","fullscreen","minimal-ui"].some(m=>matchMedia(`(display-mode: ${m})`).matches);
  const land=innerWidth>innerHeight, h=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);
  if(appMode&&h>innerHeight){app.style.bottom="auto";app.style.height=h+"px";}
- const dbg=document.getElementById("dbg");
- if(dbg) dbg.textContent=`v6 · ${innerHeight}/${h} · ${appMode?"app":"browser"} · ${Math.round(app.getBoundingClientRect().height)}`;
 }
 fit(); addEventListener("resize",fit); addEventListener("orientationchange",()=>setTimeout(fit,300));
 requestAnimationFrame(()=>show(start,false));
