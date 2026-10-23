@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:#000}body{margin:0}[hidden]{display:none!important}</style>
+<style>html,body{height:100%;overflow:hidden;background:#000}body{margin:0}#app{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;scrollbar-width:none;scroll-behavior:smooth;scroll-padding-top:calc(env(safe-area-inset-top,0px) + 66px)}#app::-webkit-scrollbar,::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}[hidden]{display:none!important}</style>
 </head><body>
 <style>
 /* Layout: one narrow black column, like a lock screen. Thin type for day names, system text for everything else. Color only as small dots. */
@@ -30,7 +30,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .col{max-width:680px;margin:0 auto}
 
 /* Tabs */
-.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.tabs{position:sticky;top:0;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.tabs{background:var(--bg)}}
 .tabs .col{display:flex;align-items:center;gap:22px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
 .tabs button{font:inherit;font-size:16px;font-weight:500;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap;transition:color .35s cubic-bezier(.22,1,.36,1),transform .2s cubic-bezier(.22,1,.36,1),background-color .2s}
@@ -128,6 +128,7 @@ main{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
 .lempty{padding:26px 0;color:var(--muted)}
 </style>
 
+<div id="app">
 <nav class="tabs pad" aria-label="Sections">
   <div class="col" role="tablist">
     <button type="button" role="tab" id="tab-week" data-tab="week" aria-controls="week">Week</button>
@@ -156,6 +157,7 @@ main{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
     </section>
   </div>
 </main>
+</div>
 
 <script>
 (function(){
@@ -301,7 +303,7 @@ function show(id,scroll){
  if(id!==cur&&dir){void panel.offsetWidth;panel.classList.add(dir);}
  tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id?"true":"false"));
  try{localStorage.setItem("tw-tab",id);}catch(e){}
- if(scroll&&window.scrollY>0) window.scrollTo({top:0,behavior:"instant"in window?"instant":"auto"});
+ if(scroll){const a=document.getElementById("app");if(a.scrollTop>0){a.style.scrollBehavior="auto";a.scrollTop=0;a.style.scrollBehavior="";}}
  cur=id;
 }
 tabs.forEach(b=>b.addEventListener("click",()=>show(b.dataset.tab,true)));
