@@ -177,9 +177,9 @@ const mx=(g,ex,sub)=>`<div class="mx" style="--c:var(--${g})"><span class="dot m
 const week=[
  ["Home",[["arms","Biceps"],["arms","Triceps"],["legs","Legs"],["abs","Abs"],["cardio","Run + sprints"]]],
  ["Gym",[["push","Chest"],["push","Back"],["delts","Shoulders"]]],
- ["Gym",[["arms","Biceps"],["arms","Triceps"],["abs","Abs"],["cardio","Zone 2"]]],
+ ["Gym · Home",[["arms","Biceps"],["arms","Triceps"],["abs","Abs"],["cardio","Zone 2"]]],
  ["Home",[["legs","Legs"],["delts","Shoulders"]]],
- ["Gym",[["push","Chest"],["push","Back"],["abs","Abs"]]],
+ ["Gym · Home",[["push","Chest"],["push","Back"],["abs","Abs"]]],
  ["Home",[["arms","Biceps"],["arms","Triceps"],["delts","Shoulders"],["legs","Legs"],["abs","Abs"]]],
  ["",[["cardio","Swim, boxing or hike"]]]
 ];
@@ -200,9 +200,9 @@ const abs=w=>["abs","Sit-ups + Russian twists","",w];
 const plan=[
  ["Home after 4",[...homeArms,["legs","Bulgarian split squat","","Home"],["legs","Single-leg DB RDL","","Home"],abs("Home"),["cardio","Run with sprints","","Outside"]]],
  ["Gym 1 PM",[["push","Incline Smith press","","Gym"],["push","Pec deck","","Gym"],["delts","Reverse pec deck","Same machine as pec deck","Gym"],["push","Bike-grip pulldown","","Gym"],["push","Single-handle cable row","2 one-arm sets, then 1 all-out with bike grip","Gym"],["delts","Machine shoulder press","","Gym"]]],
- ["Gym after 4",[["arms","Supinated DB curl","Preacher curl if no DBs","Gym"],["arms","Rope hammer curl","","Gym"],["arms","Rope pushdown","","Gym"],["arms","Skull crushers","Overhead cable ext if taken","Gym"],abs("Gym"),["cardio","Zone 2 with Nala","20–30 min","Outside"]]],
+ ["Gym after 4",[["arms","Supinated DB curl","Preacher curl if no DBs","Gym"],["arms","Rope hammer curl","","Gym"],["arms","Rope pushdown","","Gym"],["arms","Skull crushers","Overhead cable ext if taken","Gym"],abs("Home"),["cardio","Zone 2 with Nala","20–30 min","Outside"]]],
  ["Home",[["legs","Bulgarian split squat","","Home"],["legs","Single-leg DB RDL","","Home"],...delts,["delts","Front raise","","Home"]]],
- ["Gym at 11",[["push","Incline Smith press","","Gym"],["push","Pec deck","","Gym"],["push","Bike-grip pulldown","","Gym"],["push","Single-handle cable row","2 one-arm sets, then 1 all-out with bike grip","Gym"],abs("Gym")]],
+ ["Gym at 11",[["push","Incline Smith press","","Gym"],["push","Pec deck","","Gym"],["push","Bike-grip pulldown","","Gym"],["push","Single-handle cable row","2 one-arm sets, then 1 all-out with bike grip","Gym"],abs("Home")]],
  ["Home",[...homeArms,...delts,["legs","Bulgarian split squat","","Home"],["legs","Single-leg DB RDL","","Home"],abs("Home")]],
  ["Active day",[["cardio","Swim, boxing or hike","",""]]],
 ];
