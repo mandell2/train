@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<style>html{background:#000;scrollbar-width:none;overflow-anchor:none}*{overflow-anchor:none}body{margin:0;min-height:100vh}@media (display-mode: standalone){html{min-height:min(100lvh,calc(100% + env(safe-area-inset-top,0px)))}body{min-height:min(100lvh,calc(100vh + env(safe-area-inset-top,0px)))}}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
+<style>html{background:#000;height:100%;overflow:hidden;overscroll-behavior:none}body{margin:0;height:100%;overflow:hidden}@media (display-mode: standalone){html{min-height:min(100lvh,calc(100% + env(safe-area-inset-top,0px)))}}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
 </head><body>
 <style>
 /* Layout: one narrow black column, like a lock screen. Thin type for day names, system text for everything else. Color only as small dots. */
@@ -22,15 +22,14 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 66px);scroll-behavior:smooth;overscroll-behavior-y:auto;background:var(--bg)}
+html{background:var(--bg)}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;touch-action:manipulation;text-rendering:optimizeLegibility}
 ::selection{background:#2c2c2e}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 .pad{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
 .col{max-width:680px;margin:0 auto}
 
 /* Tabs */
-.tabs{position:sticky;top:0;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.tabs{position:relative;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.tabs{background:var(--bg)}}
 .tabs .col{display:flex;align-items:center;gap:22px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
 .tabs button{font:inherit;font-size:16px;font-weight:500;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap;transition:color .35s cubic-bezier(.22,1,.36,1),transform .2s cubic-bezier(.22,1,.36,1),background-color .2s}
@@ -40,12 +39,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tabs .today{margin-left:auto;font-size:14px;color:var(--fg);border:1px solid var(--faint);border-radius:999px;padding:4px 12px}
 button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radius:4px}
 
-#app{min-height:100vh}
-.track{overflow:hidden;position:relative;touch-action:pan-y}
-.rail{display:flex;align-items:flex-start;will-change:transform;transform:translate3d(0,0,0)}
+#app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.track{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:pan-y}
+.rail{display:flex;height:100%;will-change:transform;transform:translate3d(0,0,0);-webkit-backface-visibility:hidden;backface-visibility:hidden}
 .rail.anim{transition:transform .5s cubic-bezier(.22,1,.36,1)}
-.panel{position:relative;flex:0 0 100%;width:100%;min-width:0}
-.panel.off{height:0;overflow:hidden}
+.panel{position:relative;flex:0 0 100%;width:100%;min-width:0;height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;scrollbar-width:none;background:var(--bg)}
 .panel .inner{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
 .tabs{flex:none}
 .tabs .col{position:relative}
@@ -55,7 +53,7 @@ button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radiu
 .today-row{transition:background-color .6s}
 .flash{animation:flash 1.2s cubic-bezier(.22,1,.36,1)}
 @keyframes flash{0%{background:#232326}100%{background:#141416}}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.flash{animation:none}.tabs button{transition:none}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}.tabs button{transition:none}}
 
 /* Shared */
 .dot{display:inline-flex;align-items:center;gap:9px}
@@ -316,40 +314,16 @@ function moveInk(p){
 }
 function setPos(x){rail.style.transform=`translate3d(${x}px,0,0)`;moveInk(-x/W());}
 function anim(on){rail.classList.toggle("anim",on);ink.classList.toggle("anim",on);}
-const panels=TABS.map(t=>document.getElementById(t)), saved={week:0,plan:0,log:0};
-let after=null, opened=false, home=0, y0=0, settleT=0;
-/* Show every panel side by side, each lined up at its own remembered scroll spot.
-   The page's real scroll belongs to "home" (the panel active when this started). */
-function openAll(){
- if(opened) return;
- opened=true; home=idx; y0=scrollY;
- panels.forEach((p,j)=>{if(j!==home){p.classList.remove("off");p.style.transform=`translateY(${y0-saved[TABS[j]]}px)`;}});
-}
-/* Collapse back to one panel without any visible jump. */
-function settle(){
- if(!opened) return;
- clearTimeout(settleT); opened=false;
- const y=scrollY;
- saved[TABS[home]]=y;
- const target=idx===home?y:saved[TABS[idx]]+(y-y0);
- panels.forEach((p,j)=>{p.classList.toggle("off",j!==idx);p.style.transform="";});
- window.scrollTo({top:Math.max(0,target),behavior:"instant"});
- if(after){const f=after;after=null;f();}
-}
+const panels=TABS.map(t=>document.getElementById(t));
 function curX(){const m=getComputedStyle(rail).transform;return m&&m!=="none"?new DOMMatrixReadOnly(m).m41:-idx*W();}
 function go(i,smooth){
- openAll();
  idx=Math.max(0,Math.min(last,i)); setActive(TABS[idx]);
- const doAnim=!!smooth&&!reduce;
- anim(doAnim); setPos(-idx*W());
- clearTimeout(settleT);
- if(doAnim) settleT=setTimeout(settle,560); else settle();
+ anim(!!smooth&&!reduce); setPos(-idx*W());
 }
-rail.addEventListener("transitionend",e=>{if(e.target===rail&&e.propertyName==="transform"&&!dragging) settle();});
 function show(id,smooth){go(Math.max(0,TABS.indexOf(id)),smooth);}
 
 /* Swipe: only clearly sideways, fast or long swipes change tabs. Grabbing mid-animation continues smoothly. */
-let sx=0,sy=0,st=0,dx=0,lock=null,baseX=0,dragging=false;
+let sx=0,sy=0,st=0,dx=0,lock=null,baseX=0;
 track.addEventListener("touchstart",e=>{
  if(e.touches.length>1){lock="y";return;}
  const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=performance.now(); dx=0; lock=null;
@@ -361,9 +335,7 @@ track.addEventListener("touchmove",e=>{
   if(Math.abs(dx)<12&&Math.abs(dy)<12) return;
   lock=Math.abs(dx)>Math.abs(dy)*2?"x":"y";
   if(lock==="y") return;
-  dragging=true; clearTimeout(settleT);
-  baseX=curX(); anim(false); setPos(baseX);
-  openAll(); sx=t.clientX; dx=0;
+  baseX=curX(); anim(false); setPos(baseX); sx=t.clientX; dx=0;
  }
  e.preventDefault();
  let x=baseX+dx, min=-last*W();
@@ -372,7 +344,7 @@ track.addEventListener("touchmove",e=>{
 },{passive:false});
 function endSwipe(){
  if(lock!=="x"){lock=null;return;}
- lock=null; dragging=false;
+ lock=null;
  const dt=Math.max(1,performance.now()-st), v=dx/dt, pos=-curX()/W();
  let i=Math.round(pos);
  if(Math.abs(v)>0.5&&Math.abs(dx)>40) i=dx<0?Math.ceil(pos):Math.floor(pos);
@@ -383,26 +355,31 @@ track.addEventListener("touchend",endSwipe,{passive:true});
 track.addEventListener("touchcancel",endSwipe,{passive:true});
 
 tabs.forEach(b=>b.addEventListener("click",()=>{
- if(b.dataset.tab===cur){window.scrollTo({top:0,behavior:reduce?"auto":"smooth"});return;}
+ if(b.dataset.tab===cur){document.getElementById(cur).scrollTo({top:0,behavior:reduce?"auto":"smooth"});return;}
  show(b.dataset.tab,true);
 }));
 const link=document.getElementById("todayLink");
 link.textContent=DAYS[todayIdx];
 link.setAttribute("aria-label","Jump to today, "+DAYS[todayIdx]);
-function toToday(){
- const el=document.getElementById("d-"+DAYS[todayIdx]); if(!el) return;
- const top=el.getBoundingClientRect().top+scrollY-document.querySelector(".tabs").offsetHeight-8;
- window.scrollTo({top:Math.max(0,top),behavior:reduce?"auto":"smooth"});
- el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");
-}
 link.addEventListener("click",()=>{
- if(cur==="plan"){toToday();return;}
- after=toToday; show("plan",true);
+ const panel=document.getElementById("plan"), el=document.getElementById("d-"+DAYS[todayIdx]);
+ show("plan",true);
+ if(!el) return;
+ panel.scrollTo({top:Math.max(0,el.offsetTop-8),behavior:reduce?"auto":"smooth"});
+ el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");
 });
-window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());settle();});
+/* iOS 26 home-screen fallback: if the shell still comes up short, size it to the real screen */
+const app=document.getElementById("app");
+function fit(){
+ const appMode=navigator.standalone||["standalone","fullscreen","minimal-ui"].some(m=>matchMedia(`(display-mode: ${m})`).matches);
+ const land=innerWidth>innerHeight, h=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);
+ if(appMode&&app.getBoundingClientRect().height<h-2){app.style.bottom="auto";app.style.height=h+"px";}
+}
+window.addEventListener("resize",()=>{fit();anim(false);setPos(-idx*W());});
+fit();
 let start=(location.hash||"").slice(1);
 if(!TABS.includes(start)){try{start=localStorage.getItem("tw-tab")||"week";}catch(e){start="week";}}
-idx=Math.max(0,TABS.indexOf(start)); setActive(TABS[idx]); anim(false); setPos(-idx*W()); panels.forEach((p,j)=>p.classList.toggle("off",j!==idx));
+idx=Math.max(0,TABS.indexOf(start)); setActive(TABS[idx]); anim(false); setPos(-idx*W());
 })();
 </script>
 
