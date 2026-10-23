@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<style>html,body{height:100%;overflow:hidden;background:#000}body{margin:0}#app{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;scrollbar-width:none;scroll-behavior:smooth;scroll-padding-top:calc(env(safe-area-inset-top,0px) + 66px)}#app::-webkit-scrollbar,::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}[hidden]{display:none!important}</style>
+<style>html,body{height:100%;overflow:hidden;background:#000}body{margin:0}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
 </head><body>
 <style>
 /* Layout: one narrow black column, like a lock screen. Thin type for day names, system text for everything else. Color only as small dots. */
@@ -30,7 +30,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .col{max-width:680px;margin:0 auto}
 
 /* Tabs */
-.tabs{position:sticky;top:0;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.tabs{position:relative;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.tabs{background:var(--bg)}}
 .tabs .col{display:flex;align-items:center;gap:22px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
 .tabs button{font:inherit;font-size:16px;font-weight:500;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap;transition:color .35s cubic-bezier(.22,1,.36,1),transform .2s cubic-bezier(.22,1,.36,1),background-color .2s}
@@ -40,17 +40,17 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tabs .today{margin-left:auto;font-size:14px;color:var(--fg);border:1px solid var(--faint);border-radius:999px;padding:4px 12px}
 button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radius:4px}
 
-main{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
-[role="tabpanel"]{animation:panelIn .45s cubic-bezier(.22,1,.36,1) both}
-[role="tabpanel"].from-right{animation-name:panelInR}
-[role="tabpanel"].from-left{animation-name:panelInL}
-@keyframes panelIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@keyframes panelInR{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
-@keyframes panelInL{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+#app{height:100%;display:flex;flex-direction:column;overflow:hidden}
+.track{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.panel{position:relative;flex:0 0 100%;width:100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.panel .inner{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
+.tabs{flex:none}
+.tabs .col{position:relative}
+.ink{position:absolute;left:0;bottom:-1px;height:1.5px;width:0;background:var(--fg);border-radius:2px;transform-origin:0 0;will-change:transform,width;pointer-events:none}
 .today-row{transition:background-color .6s}
 .flash{animation:flash 1.2s cubic-bezier(.22,1,.36,1)}
 @keyframes flash{0%{background:#232326}100%{background:#141416}}
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}[role="tabpanel"],.flash{animation:none}.tabs button{transition:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.flash{animation:none}.tabs button{transition:none}}
 
 /* Shared */
 .dot{display:inline-flex;align-items:center;gap:9px}
@@ -135,27 +135,26 @@ main{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
     <button type="button" role="tab" id="tab-plan" data-tab="plan" aria-controls="plan">Plan</button>
     <button type="button" role="tab" id="tab-log" data-tab="log" aria-controls="log">Log</button>
     <button type="button" class="today" id="todayLink">Today</button>
+    <span class="ink" id="ink" aria-hidden="true"></span>
   </div>
 </nav>
 
-<main class="pad">
-  <div class="col">
-    <section id="week" role="tabpanel" aria-labelledby="tab-week">
+<main class="track" id="track">
+    <section id="week" class="panel" role="tabpanel" aria-labelledby="tab-week"><div class="pad"><div class="col inner">
       <ul class="week" id="weekList"></ul>
       <p class="note">Pushups before shower.</p>
       <div class="freq" id="freq"></div>
-    </section>
+    </div></div></section>
 
-    <section id="plan" role="tabpanel" aria-labelledby="tab-plan" hidden>
+    <section id="plan" class="panel" role="tabpanel" aria-labelledby="tab-plan"><div class="pad"><div class="col inner">
       <div id="planList"></div>
-    </section>
+    </div></div></section>
 
-    <section id="log" role="tabpanel" aria-labelledby="tab-log" hidden>
+    <section id="log" class="panel" role="tabpanel" aria-labelledby="tab-log"><div class="pad"><div class="col inner">
       <div class="ldays" id="logDays" role="group" aria-label="Day to log"></div>
       <p class="lstatus" id="logStatus" hidden></p>
       <div id="logList"></div>
-    </section>
-  </div>
+    </div></div></section>
 </main>
 </div>
 
@@ -295,43 +294,51 @@ renderDays(); renderLog();
 const TABS=["week","plan","log"];
 const tabs=[...document.querySelectorAll('[role="tab"]')];
 let cur=null;
-function show(id,scroll){
- if(!TABS.includes(id)) id="week";
- const dir=cur===null?"":(TABS.indexOf(id)>TABS.indexOf(cur)?"from-right":"from-left");
- TABS.forEach(t=>{const el=document.getElementById(t);el.hidden=t!==id;el.classList.remove("from-right","from-left");});
- const panel=document.getElementById(id);
- if(id!==cur&&dir){void panel.offsetWidth;panel.classList.add(dir);}
+const track=document.getElementById("track"), ink=document.getElementById("ink");
+const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const W=()=>track.clientWidth||1;
+function setActive(id){
+ if(id===cur) return;
+ cur=id;
  tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id?"true":"false"));
  try{localStorage.setItem("tw-tab",id);}catch(e){}
- if(scroll){const a=document.getElementById("app");if(a.scrollTop>0){a.style.scrollBehavior="auto";a.scrollTop=0;a.style.scrollBehavior="";}}
- cur=id;
 }
-tabs.forEach(b=>b.addEventListener("click",()=>show(b.dataset.tab,true)));
-const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function moveInk(){
+ const p=Math.max(0,Math.min(TABS.length-1,track.scrollLeft/W()));
+ const a=Math.floor(p), b=Math.min(a+1,TABS.length-1), f=p-a;
+ const ba=tabs[a], bb=tabs[b];
+ const x=ba.offsetLeft+(bb.offsetLeft-ba.offsetLeft)*f;
+ const w=ba.offsetWidth+(bb.offsetWidth-ba.offsetWidth)*f;
+ ink.style.width=w+"px"; ink.style.transform=`translateX(${x}px)`;
+}
+let raf=0;
+track.addEventListener("scroll",()=>{
+ if(raf) return;
+ raf=requestAnimationFrame(()=>{raf=0;moveInk();setActive(TABS[Math.round(track.scrollLeft/W())]);});
+},{passive:true});
+function show(id,smooth){
+ if(!TABS.includes(id)) id="week";
+ track.scrollTo({left:TABS.indexOf(id)*W(),behavior:smooth&&!reduce?"smooth":"auto"});
+ setActive(id); if(!smooth) moveInk();
+}
+tabs.forEach(b=>b.addEventListener("click",()=>{
+ if(b.dataset.tab===cur){document.getElementById(cur).scrollTo({top:0,behavior:reduce?"auto":"smooth"});return;}
+ show(b.dataset.tab,true);
+}));
 const link=document.getElementById("todayLink");
 link.textContent=DAYS[todayIdx];
 link.setAttribute("aria-label","Jump to today, "+DAYS[todayIdx]);
 link.addEventListener("click",()=>{
- show("plan");
- const el=document.getElementById("d-"+DAYS[todayIdx]);
+ show("plan",true);
+ const el=document.getElementById("d-"+DAYS[todayIdx]), panel=document.getElementById("plan");
  if(!el) return;
- requestAnimationFrame(()=>{
-  el.scrollIntoView({block:"start",behavior:reduce?"auto":"smooth"});
-  el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");
- });
+ panel.scrollTo({top:Math.max(0,el.offsetTop-8),behavior:reduce?"auto":"smooth"});
+ el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");
 });
-/* Swipe left/right to switch tabs */
-let sx=0,sy=0,st=0;
-document.addEventListener("touchstart",e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;st=Date.now();},{passive:true});
-document.addEventListener("touchend",e=>{
- const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
- if(Date.now()-st>600||Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.6) return;
- const i=TABS.indexOf(cur)+(dx<0?1:-1);
- if(i>=0&&i<TABS.length) show(TABS[i],true);
-},{passive:true});
+window.addEventListener("resize",()=>{track.scrollLeft=TABS.indexOf(cur)*W();moveInk();});
 let start=(location.hash||"").slice(1);
 if(!TABS.includes(start)){try{start=localStorage.getItem("tw-tab")||"week";}catch(e){start="week";}}
-show(start);
+requestAnimationFrame(()=>show(start,false));
 })();
 </script>
 
