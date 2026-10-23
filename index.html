@@ -41,12 +41,16 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radius:4px}
 
 #app{height:100%;display:flex;flex-direction:column;overflow:hidden}
-.track{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.panel{position:relative;flex:0 0 100%;width:100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.track{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:pan-y}
+.rail{display:flex;height:100%;will-change:transform;transform:translate3d(0,0,0)}
+.rail.anim{transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.panel{position:relative;flex:0 0 100%;width:100%;min-width:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .panel .inner{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
 .tabs{flex:none}
 .tabs .col{position:relative}
-.ink{position:absolute;left:0;bottom:-1px;height:1.5px;width:0;background:var(--fg);border-radius:2px;transform-origin:0 0;will-change:transform,width;pointer-events:none}
+.ink{position:absolute;left:0;bottom:-1px;height:1.5px;width:0;background:var(--fg);border-radius:2px;will-change:transform,width;pointer-events:none}
+.ink.anim{transition:transform .5s cubic-bezier(.22,1,.36,1),width .5s cubic-bezier(.22,1,.36,1)}
+@media (prefers-reduced-motion:reduce){.rail.anim,.ink.anim{transition:none}}
 .today-row{transition:background-color .6s}
 .flash{animation:flash 1.2s cubic-bezier(.22,1,.36,1)}
 @keyframes flash{0%{background:#232326}100%{background:#141416}}
@@ -139,7 +143,7 @@ button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radiu
   </div>
 </nav>
 
-<main class="track" id="track">
+<main class="track" id="track"><div class="rail" id="rail">
     <section id="week" class="panel" role="tabpanel" aria-labelledby="tab-week"><div class="pad"><div class="col inner">
       <ul class="week" id="weekList"></ul>
       <p class="note">Pushups before shower.</p>
@@ -155,7 +159,7 @@ button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radiu
       <p class="lstatus" id="logStatus" hidden></p>
       <div id="logList"></div>
     </div></div></section>
-</main>
+</div></main>
 </div>
 
 <script>
@@ -293,34 +297,60 @@ renderDays(); renderLog();
 /* Tabs */
 const TABS=["week","plan","log"];
 const tabs=[...document.querySelectorAll('[role="tab"]')];
-let cur=null;
-const track=document.getElementById("track"), ink=document.getElementById("ink");
+let cur=null, idx=0;
+const track=document.getElementById("track"), rail=document.getElementById("rail"), ink=document.getElementById("ink");
 const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const W=()=>track.clientWidth||1;
+const W=()=>track.clientWidth||1, last=TABS.length-1;
 function setActive(id){
  if(id===cur) return;
  cur=id;
  tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id?"true":"false"));
  try{localStorage.setItem("tw-tab",id);}catch(e){}
 }
-function moveInk(){
- const p=Math.max(0,Math.min(TABS.length-1,track.scrollLeft/W()));
- const a=Math.floor(p), b=Math.min(a+1,TABS.length-1), f=p-a;
- const ba=tabs[a], bb=tabs[b];
- const x=ba.offsetLeft+(bb.offsetLeft-ba.offsetLeft)*f;
- const w=ba.offsetWidth+(bb.offsetWidth-ba.offsetWidth)*f;
- ink.style.width=w+"px"; ink.style.transform=`translateX(${x}px)`;
+function moveInk(p){
+ p=Math.max(0,Math.min(last,p));
+ const a=Math.floor(p), b=Math.min(a+1,last), f=p-a, ba=tabs[a], bb=tabs[b];
+ ink.style.width=(ba.offsetWidth+(bb.offsetWidth-ba.offsetWidth)*f)+"px";
+ ink.style.transform=`translateX(${ba.offsetLeft+(bb.offsetLeft-ba.offsetLeft)*f}px)`;
 }
-let raf=0;
-track.addEventListener("scroll",()=>{
- if(raf) return;
- raf=requestAnimationFrame(()=>{raf=0;moveInk();setActive(TABS[Math.round(track.scrollLeft/W())]);});
+function setPos(x){rail.style.transform=`translate3d(${x}px,0,0)`;moveInk(-x/W());}
+function anim(on){rail.classList.toggle("anim",on);ink.classList.toggle("anim",on);}
+function go(i,smooth){
+ idx=Math.max(0,Math.min(last,i));
+ anim(!!smooth&&!reduce); setPos(-idx*W()); setActive(TABS[idx]);
+}
+function show(id,smooth){go(Math.max(0,TABS.indexOf(id)),smooth);}
+
+/* Swipe: only clearly sideways, fast or long swipes change tabs */
+let sx=0,sy=0,st=0,dx=0,lock=null;
+track.addEventListener("touchstart",e=>{
+ if(e.touches.length>1){lock="y";return;}
+ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=performance.now(); dx=0; lock=null;
 },{passive:true});
-function show(id,smooth){
- if(!TABS.includes(id)) id="week";
- track.scrollTo({left:TABS.indexOf(id)*W(),behavior:smooth&&!reduce?"smooth":"auto"});
- setActive(id); if(!smooth) moveInk();
+track.addEventListener("touchmove",e=>{
+ if(lock==="y") return;
+ const t=e.touches[0]; dx=t.clientX-sx; const dy=t.clientY-sy;
+ if(lock===null){
+  if(Math.abs(dx)<12&&Math.abs(dy)<12) return;
+  lock=Math.abs(dx)>Math.abs(dy)*2?"x":"y";
+  if(lock==="y") return;
+  anim(false);
+ }
+ e.preventDefault();
+ let off=dx;
+ if((idx===0&&dx>0)||(idx===last&&dx<0)) off=dx*0.25;
+ setPos(-idx*W()+off);
+},{passive:false});
+function endSwipe(){
+ if(lock!=="x"){lock=null;return;}
+ const dt=Math.max(1,performance.now()-st), v=dx/dt;
+ let i=idx;
+ if((Math.abs(v)>0.5&&Math.abs(dx)>40)||Math.abs(dx)>W()*0.45) i=idx+(dx<0?1:-1);
+ lock=null; go(i,true);
 }
+track.addEventListener("touchend",endSwipe,{passive:true});
+track.addEventListener("touchcancel",endSwipe,{passive:true});
+
 tabs.forEach(b=>b.addEventListener("click",()=>{
  if(b.dataset.tab===cur){document.getElementById(cur).scrollTo({top:0,behavior:reduce?"auto":"smooth"});return;}
  show(b.dataset.tab,true);
@@ -335,7 +365,7 @@ link.addEventListener("click",()=>{
  panel.scrollTo({top:Math.max(0,el.offsetTop-8),behavior:reduce?"auto":"smooth"});
  el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");
 });
-window.addEventListener("resize",()=>{track.scrollLeft=TABS.indexOf(cur)*W();moveInk();});
+window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());});
 let start=(location.hash||"").slice(1);
 if(!TABS.includes(start)){try{start=localStorage.getItem("tw-tab")||"week";}catch(e){start="week";}}
 requestAnimationFrame(()=>show(start,false));
