@@ -368,6 +368,14 @@ link.addEventListener("click",()=>{
 window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());});
 let start=(location.hash||"").slice(1);
 if(!TABS.includes(start)){try{start=localStorage.getItem("tw-tab")||"week";}catch(e){start="week";}}
+/* Size the app to the real screen (home-screen apps stop above the home bar otherwise) */
+const app=document.getElementById("app");
+function fit(){
+ if(!(navigator.standalone||matchMedia("(display-mode: standalone)").matches)) return;
+ const land=innerWidth>innerHeight, h=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);
+ if(h>innerHeight){app.style.bottom="auto";app.style.height=h+"px";}
+}
+fit(); addEventListener("resize",fit); addEventListener("orientationchange",()=>setTimeout(fit,300));
 requestAnimationFrame(()=>show(start,false));
 })();
 </script>
