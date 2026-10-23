@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<style>html{background:#000;scrollbar-width:none}body{margin:0;min-height:100vh}@media (display-mode: standalone){html{min-height:min(100lvh,calc(100% + env(safe-area-inset-top,0px)))}body{min-height:min(100lvh,calc(100vh + env(safe-area-inset-top,0px)))}}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
+<style>html{background:#000;scrollbar-width:none;overflow-anchor:none}*{overflow-anchor:none}body{margin:0;min-height:100vh}@media (display-mode: standalone){html{min-height:min(100lvh,calc(100% + env(safe-area-inset-top,0px)))}body{min-height:min(100lvh,calc(100vh + env(safe-area-inset-top,0px)))}}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
 </head><body>
 <style>
 /* Layout: one narrow black column, like a lock screen. Thin type for day names, system text for everything else. Color only as small dots. */
@@ -317,32 +317,39 @@ function moveInk(p){
 function setPos(x){rail.style.transform=`translate3d(${x}px,0,0)`;moveInk(-x/W());}
 function anim(on){rail.classList.toggle("anim",on);ink.classList.toggle("anim",on);}
 const panels=TABS.map(t=>document.getElementById(t)), saved={week:0,plan:0,log:0};
-let after=null, opened=false;
+let after=null, opened=false, home=0, y0=0, settleT=0;
+/* Show every panel side by side, each lined up at its own remembered scroll spot.
+   The page's real scroll belongs to "home" (the panel active when this started). */
 function openAll(){
- if(opened) return; opened=true;
- const y=scrollY;
- panels.forEach((p,j)=>{if(j!==idx){p.classList.remove("off");p.style.transform=`translateY(${y-saved[TABS[j]]}px)`;}});
+ if(opened) return;
+ opened=true; home=idx; y0=scrollY;
+ panels.forEach((p,j)=>{if(j!==home){p.classList.remove("off");p.style.transform=`translateY(${y0-saved[TABS[j]]}px)`;}});
 }
+/* Collapse back to one panel without any visible jump. */
 function settle(){
- opened=false;
+ if(!opened) return;
+ clearTimeout(settleT); opened=false;
+ const y=scrollY;
+ saved[TABS[home]]=y;
+ const target=idx===home?y:saved[TABS[idx]]+(y-y0);
  panels.forEach((p,j)=>{p.classList.toggle("off",j!==idx);p.style.transform="";});
- window.scrollTo(0,saved[TABS[idx]]);
+ window.scrollTo({top:Math.max(0,target),behavior:"instant"});
  if(after){const f=after;after=null;f();}
 }
+function curX(){const m=getComputedStyle(rail).transform;return m&&m!=="none"?new DOMMatrixReadOnly(m).m41:-idx*W();}
 function go(i,smooth){
- const n=Math.max(0,Math.min(last,i));
- if(n!==idx) saved[TABS[idx]]=scrollY;
  openAll();
- idx=n; setActive(TABS[idx]);
+ idx=Math.max(0,Math.min(last,i)); setActive(TABS[idx]);
  const doAnim=!!smooth&&!reduce;
  anim(doAnim); setPos(-idx*W());
- if(!doAnim) settle(); else {clearTimeout(go.t);go.t=setTimeout(()=>{if(opened)settle();},700);}
+ clearTimeout(settleT);
+ if(doAnim) settleT=setTimeout(settle,560); else settle();
 }
-rail.addEventListener("transitionend",e=>{if(e.target===rail&&e.propertyName==="transform"&&opened) settle();});
+rail.addEventListener("transitionend",e=>{if(e.target===rail&&e.propertyName==="transform"&&!dragging) settle();});
 function show(id,smooth){go(Math.max(0,TABS.indexOf(id)),smooth);}
 
-/* Swipe: only clearly sideways, fast or long swipes change tabs */
-let sx=0,sy=0,st=0,dx=0,lock=null;
+/* Swipe: only clearly sideways, fast or long swipes change tabs. Grabbing mid-animation continues smoothly. */
+let sx=0,sy=0,st=0,dx=0,lock=null,baseX=0,dragging=false;
 track.addEventListener("touchstart",e=>{
  if(e.touches.length>1){lock="y";return;}
  const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=performance.now(); dx=0; lock=null;
@@ -354,19 +361,23 @@ track.addEventListener("touchmove",e=>{
   if(Math.abs(dx)<12&&Math.abs(dy)<12) return;
   lock=Math.abs(dx)>Math.abs(dy)*2?"x":"y";
   if(lock==="y") return;
-  anim(false); saved[TABS[idx]]=scrollY; openAll();
+  dragging=true; clearTimeout(settleT);
+  baseX=curX(); anim(false); setPos(baseX);
+  openAll(); sx=t.clientX; dx=0;
  }
  e.preventDefault();
- let off=dx;
- if((idx===0&&dx>0)||(idx===last&&dx<0)) off=dx*0.25;
- setPos(-idx*W()+off);
+ let x=baseX+dx, min=-last*W();
+ if(x>0) x=x*0.25; else if(x<min) x=min+(x-min)*0.25;
+ setPos(x);
 },{passive:false});
 function endSwipe(){
  if(lock!=="x"){lock=null;return;}
- const dt=Math.max(1,performance.now()-st), v=dx/dt;
- let i=idx;
- if((Math.abs(v)>0.5&&Math.abs(dx)>40)||Math.abs(dx)>W()*0.45) i=idx+(dx<0?1:-1);
- lock=null; go(i,true);
+ lock=null; dragging=false;
+ const dt=Math.max(1,performance.now()-st), v=dx/dt, pos=-curX()/W();
+ let i=Math.round(pos);
+ if(Math.abs(v)>0.5&&Math.abs(dx)>40) i=dx<0?Math.ceil(pos):Math.floor(pos);
+ else if(Math.abs(dx)>W()*0.45) i=dx<0?Math.ceil(pos-0.05):Math.floor(pos+0.05);
+ go(i,true);
 }
 track.addEventListener("touchend",endSwipe,{passive:true});
 track.addEventListener("touchcancel",endSwipe,{passive:true});
@@ -388,10 +399,10 @@ link.addEventListener("click",()=>{
  if(cur==="plan"){toToday();return;}
  after=toToday; show("plan",true);
 });
-window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());if(opened)settle();});
+window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());settle();});
 let start=(location.hash||"").slice(1);
 if(!TABS.includes(start)){try{start=localStorage.getItem("tw-tab")||"week";}catch(e){start="week";}}
-idx=Math.max(0,TABS.indexOf(start)); setActive(TABS[idx]); anim(false); setPos(-idx*W()); settle();
+idx=Math.max(0,TABS.indexOf(start)); setActive(TABS[idx]); anim(false); setPos(-idx*W()); panels.forEach((p,j)=>p.classList.toggle("off",j!==idx));
 })();
 </script>
 
