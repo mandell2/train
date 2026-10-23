@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-512.png">
 <link rel="manifest" href="manifest.webmanifest">
-<style>html,body{height:100%;overflow:hidden;background:#000}body{margin:0}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
+<style>html{background:#000;scrollbar-width:none}body{margin:0;min-height:100vh}::-webkit-scrollbar{display:none;width:0;height:0;background:transparent}</style>
 </head><body>
 <style>
 /* Layout: one narrow black column, like a lock screen. Thin type for day names, system text for everything else. Color only as small dots. */
@@ -30,7 +30,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .col{max-width:680px;margin:0 auto}
 
 /* Tabs */
-.tabs{position:relative;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+.tabs{position:sticky;top:0;padding-top:env(safe-area-inset-top,0px);z-index:9;background:rgba(0,0,0,.72);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.tabs{background:var(--bg)}}
 .tabs .col{display:flex;align-items:center;gap:22px;padding-block:18px 14px;border-bottom:1px solid var(--line)}
 .tabs button{font:inherit;font-size:16px;font-weight:500;color:var(--muted);background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap;transition:color .35s cubic-bezier(.22,1,.36,1),transform .2s cubic-bezier(.22,1,.36,1),background-color .2s}
@@ -40,11 +40,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .tabs .today{margin-left:auto;font-size:14px;color:var(--fg);border:1px solid var(--faint);border-radius:999px;padding:4px 12px}
 button:focus-visible{outline:1px solid var(--fg);outline-offset:4px;border-radius:4px}
 
-#app{position:fixed;top:0;left:0;right:0;bottom:calc(-1 * env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;overflow:hidden}
-.track{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:pan-y}
-.rail{display:flex;height:100%;will-change:transform;transform:translate3d(0,0,0)}
+#app{min-height:100vh}
+.track{overflow:hidden;position:relative;touch-action:pan-y}
+.rail{display:flex;align-items:flex-start;will-change:transform;transform:translate3d(0,0,0)}
 .rail.anim{transition:transform .5s cubic-bezier(.22,1,.36,1)}
-.panel{position:relative;flex:0 0 100%;width:100%;min-width:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.panel{position:relative;flex:0 0 100%;width:100%;min-width:0}
+.panel.off{height:0;overflow:hidden}
 .panel .inner{padding-block:8px calc(72px + env(safe-area-inset-bottom,0px))}
 .tabs{flex:none}
 .tabs .col{position:relative}
@@ -315,10 +316,29 @@ function moveInk(p){
 }
 function setPos(x){rail.style.transform=`translate3d(${x}px,0,0)`;moveInk(-x/W());}
 function anim(on){rail.classList.toggle("anim",on);ink.classList.toggle("anim",on);}
-function go(i,smooth){
- idx=Math.max(0,Math.min(last,i));
- anim(!!smooth&&!reduce); setPos(-idx*W()); setActive(TABS[idx]);
+const panels=TABS.map(t=>document.getElementById(t)), saved={week:0,plan:0,log:0};
+let after=null, opened=false;
+function openAll(){
+ if(opened) return; opened=true;
+ const y=scrollY;
+ panels.forEach((p,j)=>{if(j!==idx){p.classList.remove("off");p.style.transform=`translateY(${y-saved[TABS[j]]}px)`;}});
 }
+function settle(){
+ opened=false;
+ panels.forEach((p,j)=>{p.classList.toggle("off",j!==idx);p.style.transform="";});
+ window.scrollTo(0,saved[TABS[idx]]);
+ if(after){const f=after;after=null;f();}
+}
+function go(i,smooth){
+ const n=Math.max(0,Math.min(last,i));
+ if(n!==idx) saved[TABS[idx]]=scrollY;
+ openAll();
+ idx=n; setActive(TABS[idx]);
+ const doAnim=!!smooth&&!reduce;
+ anim(doAnim); setPos(-idx*W());
+ if(!doAnim) settle(); else {clearTimeout(go.t);go.t=setTimeout(()=>{if(opened)settle();},700);}
+}
+rail.addEventListener("transitionend",e=>{if(e.target===rail&&e.propertyName==="transform"&&opened) settle();});
 function show(id,smooth){go(Math.max(0,TABS.indexOf(id)),smooth);}
 
 /* Swipe: only clearly sideways, fast or long swipes change tabs */
@@ -334,7 +354,7 @@ track.addEventListener("touchmove",e=>{
   if(Math.abs(dx)<12&&Math.abs(dy)<12) return;
   lock=Math.abs(dx)>Math.abs(dy)*2?"x":"y";
   if(lock==="y") return;
-  anim(false);
+  anim(false); saved[TABS[idx]]=scrollY; openAll();
  }
  e.preventDefault();
  let off=dx;
@@ -352,31 +372,26 @@ track.addEventListener("touchend",endSwipe,{passive:true});
 track.addEventListener("touchcancel",endSwipe,{passive:true});
 
 tabs.forEach(b=>b.addEventListener("click",()=>{
- if(b.dataset.tab===cur){document.getElementById(cur).scrollTo({top:0,behavior:reduce?"auto":"smooth"});return;}
+ if(b.dataset.tab===cur){window.scrollTo({top:0,behavior:reduce?"auto":"smooth"});return;}
  show(b.dataset.tab,true);
 }));
 const link=document.getElementById("todayLink");
 link.textContent=DAYS[todayIdx];
 link.setAttribute("aria-label","Jump to today, "+DAYS[todayIdx]);
-link.addEventListener("click",()=>{
- show("plan",true);
- const el=document.getElementById("d-"+DAYS[todayIdx]), panel=document.getElementById("plan");
- if(!el) return;
- panel.scrollTo({top:Math.max(0,el.offsetTop-8),behavior:reduce?"auto":"smooth"});
+function toToday(){
+ const el=document.getElementById("d-"+DAYS[todayIdx]); if(!el) return;
+ const top=el.getBoundingClientRect().top+scrollY-document.querySelector(".tabs").offsetHeight-8;
+ window.scrollTo({top:Math.max(0,top),behavior:reduce?"auto":"smooth"});
  el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");
+}
+link.addEventListener("click",()=>{
+ if(cur==="plan"){toToday();return;}
+ after=toToday; show("plan",true);
 });
-window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());});
+window.addEventListener("resize",()=>{anim(false);setPos(-idx*W());if(opened)settle();});
 let start=(location.hash||"").slice(1);
 if(!TABS.includes(start)){try{start=localStorage.getItem("tw-tab")||"week";}catch(e){start="week";}}
-/* Size the app to the real screen (home-screen apps stop above the home bar otherwise) */
-const app=document.getElementById("app");
-function fit(){
- const appMode=navigator.standalone||["standalone","fullscreen","minimal-ui"].some(m=>matchMedia(`(display-mode: ${m})`).matches);
- const land=innerWidth>innerHeight, h=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);
- if(appMode&&h>innerHeight){app.style.bottom="auto";app.style.height=h+"px";}
-}
-fit(); addEventListener("resize",fit); addEventListener("orientationchange",()=>setTimeout(fit,300));
-requestAnimationFrame(()=>show(start,false));
+idx=Math.max(0,TABS.indexOf(start)); setActive(TABS[idx]); anim(false); setPos(-idx*W()); settle();
 })();
 </script>
 
